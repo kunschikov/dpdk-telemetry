@@ -7,7 +7,6 @@
 #include <syslog.h>
 #include <poll.h>
 
-#include <iostream>
 #include <unistd.h>
 #include <boost/property_tree/ptree.hpp>
 #pragma GCC diagnostic push
@@ -231,20 +230,4 @@ std::string DPDKTelemetry::version()
 DPDKTelemetry::operator std::string()
 {
      return reply;
-}
-
-int main(int argc, char **argv)
-{
-     std::string path = "/var/run/dpdk/rte/dpdk_telemetry.v2";
-     if(argc > 1)
-     {
-          path = argv[1];
-     }
-
-     DPDKTelemetry telemetry(path);
-     std::string ret;
-     telemetry << "/ethdev/link_status,0" >> ret;
-     std::cout << "iface #0 state: " << telemetry["/ethdev/link_status.status"] << std::endl;
-     std::cout << "whole message: '" << ret << "' \n";
-     return EXIT_SUCCESS;
 }

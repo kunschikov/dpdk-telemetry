@@ -1,4 +1,5 @@
 #include  "dpdk-telemetry.h"
+#include <iostream>
 
 int main(int argc, char **argv)
 {
@@ -8,10 +9,10 @@ int main(int argc, char **argv)
           path = argv[1];
      }
 
+     std::string status;
      DPDKTelemetry telemetry(path);
-     std::string ret;
-     telemetry << "/ethdev/link_status,0" >> ret;
+     telemetry << "/ethdev/link_status,0" >> status;
      std::cout << "iface #0 state: " << telemetry["/ethdev/link_status.status"] << std::endl;
-     std::cout << "whole message: '" << ret << "' \n";
+     std::cout << "whole message: '" << status << "' \n";
      return EXIT_SUCCESS;
 }
