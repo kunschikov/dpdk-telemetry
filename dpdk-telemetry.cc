@@ -162,6 +162,12 @@ DPDKTelemetry& DPDKTelemetry::operator << (const std::string& command)
 
 DPDKTelemetry& DPDKTelemetry::operator >> (std::string& user_buffer)
 {
+     if(not query.empty())
+     {
+         write(query);
+         query.clear();
+     }
+
      if(fd != -1)
      {
           reply = user_buffer = read();
@@ -172,6 +178,12 @@ DPDKTelemetry& DPDKTelemetry::operator >> (std::string& user_buffer)
 
 std::string DPDKTelemetry::operator [] (const std::string& key)
 {
+     if(not query.empty())
+     {
+         write(query);
+         query.clear();
+     }
+
      if(fd == -1)
      {
           return "";
@@ -227,6 +239,12 @@ std::string DPDKTelemetry::version()
 
 DPDKTelemetry::operator std::string()
 {
+     if(not query.empty())
+     {
+         write(query);
+         query.clear();
+         reply = read();
+     }
      return reply;
 }
 
