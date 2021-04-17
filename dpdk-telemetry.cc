@@ -109,7 +109,7 @@ bool DPDKTelemetry::write(const std::string& message)
 std::string DPDKTelemetry::read()
 {
      std::string ret;
-     const int timeout = 60;
+     const int timeout = 60;        //минута максимального ожидания ответа
      for(int i = 0; i < timeout;)
      {
           ssize_t count = 0;
@@ -123,31 +123,31 @@ std::string DPDKTelemetry::read()
                break;
           }
 
-          if(not count or not (pfd.revents & POLLIN))
+          if(not (pfd.revents & POLLIN))
           {
-               i++;
+               i++;         //из сокета нечего читать. повторяем ожидание
                continue;
           }
 
           count = ::read(fd, buffer, sizeof(buffer));
           if(-1 == count)
           {
-               break;
+               break;       //ошибка чтения. прерываем опрос
           }
 
           if(not count)
           {
-               break;
+               break;       // EOF: другая сторона закрыла соединение. Приложение DPDK было завершено.
           }
-          ret.append(buffer, count);
+
+          ret.append(buffer, count); //успешно прочитан буфер в count bytes. 
 
           if(buffer[count - 1] == '}' or buffer[count - 1] == 0)
           {
-               //заканчиваем чтение
+               //заканчиваем чтение по стоп-символу json либо концу строки
                break;
           }
      }
-
 
      return ret;
 }
