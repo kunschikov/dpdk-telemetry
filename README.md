@@ -2,9 +2,10 @@
 
 
  Работа с телеметрией DPDK на C++
+
 usage: 
  *
- * Пример использования #0
+ *  #0
  *   DPDKTelemetry tm; //создан объект без открытия соединения
  *   tm << "/ethdev/link_status,0"; // открывается соединение, шлется запрос статуса сетевого порта 0
  *   std::string link = tm["/ethdev/link_status.status"];   // из ответного JSON вычитывем поле ethdev -> link_status ->status
@@ -12,7 +13,7 @@ usage:
  *   std::cout << "link of the port #0 is " << DPDKTelemetry("/ethdev/link_status,0")["/ethdev/link_status.status"] << std::endl;
  *   будет отображено 'link of the port #0 is UP'
  *
- * Пример использования #1
+ *  #1
  *   std::string devices, link;
  *   DPDKTelemetry tm;
  *   tm << "/ethdev/list" >> devices << "/ethdev/link_status,0" >> link;
