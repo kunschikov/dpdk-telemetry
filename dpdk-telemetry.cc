@@ -70,10 +70,12 @@ void DPDKTelemetry::close()
 
 bool DPDKTelemetry::check()
 {
-     if(fd == -1)
+     if(fd != -1)
      {
-          fd = open();
+         return true;
      }
+
+     fd = open();
 
      if(fd == -1)
      {
@@ -174,6 +176,7 @@ std::string DPDKTelemetry::operator [] (const std::string& key)
      {
           return "";
      }
+
      if(reply.empty())
      {
           reply = read();
