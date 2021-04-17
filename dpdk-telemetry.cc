@@ -1,20 +1,14 @@
 #include "dpdk-telemetry.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <string.h>
-#include <syslog.h>
-#include <poll.h>
+#include <sys/stat.h>                               //::stat
+#include <sys/socket.h>                             //::socket
+#include <sys/un.h>                                 //sockaddr_un
+#include <syslog.h>                                 //::syslog
+#include <poll.h>                                   //::poll
 
-#include <unistd.h>
-#include <boost/property_tree/ptree.hpp>
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
-#include <boost/property_tree/json_parser.hpp>
-#pragma GCC diagnostic pop
+#include <boost/property_tree/json_parser.hpp>      //property_tree::read_json
 
-DPDKTelemetry::DPDKTelemetry(const std::string& p)
+DPDKTelemetry::DPDKTelemetry(const std::string& q, const std::string& p):query(q)
 {
      if(not p.empty())
      {
@@ -31,6 +25,12 @@ DPDKTelemetry::~DPDKTelemetry()
 
 int DPDKTelemetry::open()
 {
+    struct stat s;
+    if(0 != ::stat(path.c_str(), &s))
+     {
+          return -1;
+     }
+
      int fd = ::socket(AF_UNIX, SOCK_SEQPACKET, 0);
      if(fd == -1)
      {
@@ -48,7 +48,6 @@ int DPDKTelemetry::open()
           return -1;
      }
 
-     ::syslog(LOG_INFO, "Connected to the '%s' telemetry socket", path.c_str());
      return fd;
 }
 
@@ -65,7 +64,6 @@ void DPDKTelemetry::close()
           syslog(LOG_ERR, "Errors while shutting down telemetry connection fd #%d: %s", fd, strerror(errno));
      }
 
-     ::syslog(LOG_INFO, "Connection to the '%s' telemetry socket was closed.", path.c_str());
      fd = -1;
 }
 
@@ -75,11 +73,15 @@ bool DPDKTelemetry::check()
      if(fd == -1)
      {
           fd = open();
-          status = read();
-          ::syslog(LOG_INFO, "'%s' telemetry socket info: %s", path.c_str(), status.c_str());
      }
 
-     return fd != -1;
+     if(fd == -1)
+     {
+          return false;
+     }
+
+     status = read();
+     return true;
 }
 
 
@@ -88,43 +90,30 @@ bool DPDKTelemetry::write(const std::string& message)
      reply.clear();
      if(not check())
      {
-          ::syslog(LOG_WARNING, "refused to write command '%s' to the telemetry connection: it is not valid", message.c_str());
           return false;
      }
 
      ssize_t count = ::send(fd, message.c_str(), message.size(), 0);
      if(-1 == count)
      {
-          ::syslog(LOG_ERR, "failed to write command '%s' to the telemetry connection: %s", message.c_str(), strerror(errno));
           close();
           return false;
      }
 
-     if(count != (ssize_t) message.size())
-     {
-          ::syslog(LOG_WARNING, "failed to write command '%s' to the telemetry connection: only %lu from %lu bytes were written", message.c_str(), count, message.size());
-          return false;
-     }
-
-     return true;
+     return  count == (ssize_t) message.size();
 }
 
 
 std::string DPDKTelemetry::read()
 {
-     if(not check())
-     {
-          ::syslog(LOG_WARNING, "refused to read from the '%s' telemetry socket: it is not valid", path.c_str());
-          return "";
-     }
-
      std::string ret;
-     const int timeout = 20;
-     for(int i = 0; i < timeout; i++)
+     const int timeout = 60;
+     for(int i = 0; i < timeout;)
      {
           ssize_t count = 0;
-          char buffer[1024];
+          char buffer[65536];
           struct pollfd pfd{fd, POLLIN, 0};
+
           count = poll(&pfd, 1, 1000);
           if(count == -1)
           {
@@ -134,19 +123,18 @@ std::string DPDKTelemetry::read()
 
           if(not count or not (pfd.revents & POLLIN))
           {
+               i++;
                continue;
           }
 
-          count = ::recv(fd, buffer, sizeof(buffer), 0);
+          count = ::read(fd, buffer, sizeof(buffer));
           if(-1 == count)
           {
-               ::syslog(LOG_ERR, "failed to read from the %s. Got '%s' output and '%s' system error", path.c_str(), ret.c_str(), strerror(errno));
                break;
           }
 
           if(not count)
           {
-               ::syslog(LOG_INFO, "failed to read from the %s. Got '%s' output and other side closed connection.", path.c_str(), ret.c_str());
                break;
           }
           ret.append(buffer, count);
@@ -162,6 +150,7 @@ std::string DPDKTelemetry::read()
      return ret;
 }
 
+
 DPDKTelemetry& DPDKTelemetry::operator << (const std::string& command)
 {
      write(command);
@@ -171,13 +160,20 @@ DPDKTelemetry& DPDKTelemetry::operator << (const std::string& command)
 
 DPDKTelemetry& DPDKTelemetry::operator >> (std::string& user_buffer)
 {
-     reply = user_buffer = read();
+     if(fd != -1)
+     {
+          reply = user_buffer = read();
+     }
      return *this;
 }
 
 
 std::string DPDKTelemetry::operator [] (const std::string& key)
 {
+     if(fd == -1)
+     {
+          return "";
+     }
      if(reply.empty())
      {
           reply = read();
@@ -185,7 +181,6 @@ std::string DPDKTelemetry::operator [] (const std::string& key)
 
      if(reply.empty())
      {
-          ::syslog(LOG_WARNING, "failed to read from the the telemetry connection. Can't get '%s' key value", key.c_str());
           return "";
      }
 
@@ -230,4 +225,10 @@ std::string DPDKTelemetry::version()
 DPDKTelemetry::operator std::string()
 {
      return reply;
+}
+
+
+DPDKTelemetry:: operator bool()
+{
+     return fd != -1;
 }

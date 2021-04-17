@@ -8,11 +8,10 @@ int main(int argc, char **argv)
      {
           path = argv[1];
      }
-
-     std::string status;
-     DPDKTelemetry telemetry(path);
-     telemetry << "/ethdev/link_status,0" >> status;
-     std::cout << "iface #0 state: " << telemetry["/ethdev/link_status.status"] << std::endl;
-     std::cout << "whole message: '" << status << "' \n";
+     std::cout << "device list " << DPDKTelemetry("/ethdev/list", path) << std::endl;
+     std::string devices, link;
+     DPDKTelemetry tm;
+     tm << "/ethdev/list" >> devices << "/ethdev/link_status,0" >> link;
+     std::cout << "device list " << devices << " link: " << link << std::endl;
      return EXIT_SUCCESS;
 }

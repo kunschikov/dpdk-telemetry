@@ -5,16 +5,15 @@
 /* *
  *   Работа с телеметрией DPDK как с потоком с++
  *
- * Пример использования #1
- *   DPDKTelemetry tm;
- *   tm << "/ethdev/link_status,0";
- *   std::cout << "link of the port #0 is " << tm["/ethdev/link_status.status"] << std::endl;
- *   будет отображено 'link of the port #0 is UP'
+ * Пример использования #0
+ *   std::cout << "link of the port #0 is " << DPDKTelemetry("/ethdev/link_status,0")["/ethdev/link_status.status"] << std::endl;
+ *   будет отображено 'link of the port #0 is UP' или DOWN
  *
- * Пример использования #2
- *   std::string devices;
- *   tm << "/ethdev/list" >> devices;
- *    В devices будет json ответ с перечнем устройств. 
+ * Пример использования #1
+ *   std::string devices, link;
+ *   DPDKTelemetry tm;
+ *   tm << "/ethdev/list" >> devices << "/ethdev/link_status,0" >> link;
+ *   std::cout << "device lis is: " << devices << " link of the port #0 is " << link << std::endl;
  *
  *   Команды и ответы смотреть на устройстве через консольную утилиту dpdk-telemetry
  *   
@@ -23,15 +22,17 @@
 
 class DPDKTelemetry
 {
-     public:
+public:
           ///@brief создаем объект соединения без фактического соединения к телеметрии
+          ///@param query запрос, который будет послан в телеметрию при фактическом задействовании
           ///@param path опциональный путь до сокета телеметрии DPDK
-          explicit DPDKTelemetry(const std::string& path = "");
+          explicit DPDKTelemetry(const std::string& query = "", const std::string& path = "");
 
           ///@brief закрываем соединение по необходимости
           ~DPDKTelemetry();
 
           ///@brief оператор отправки запроса в телеметрию 
+          //   1. шлем команду 'command' в телеметрию 
           ///@param command команда телеметрии 
           DPDKTelemetry& operator << (const std::string& command);
 
@@ -40,23 +41,28 @@ class DPDKTelemetry
           DPDKTelemetry& operator >> (std::string& buffer);
 
           ///@brief оператор поиска в крайнем ответе телеметрии значения по ключу.
-          /// При пустом внутренем буфере производится попытка чтения сокета.
+          /// При пустом внутреннем буфере производится попытка чтения сокета.
           ///@param key ключ, по которому производится поиск
           ///@return значение по ключу или пустая строка в случае отсутствия ключа/данных
           std::string operator [] (const std::string& key);
 
           ///@brief возвращает версию и статус DPDK приложения, с которым работает.
-          ///@return первое сообщение после коннекта, в котором отсылается описатель системы
+          ///@return первое сообщение после коннекта, в котором отсылается json -  описатель системы
           std::string version();
 
           ///@brief конверсия в std::string 
           ///@return возвращаем крайний ответ
           operator std::string();
-     private:
-          int fd = -1;                                                // канал обмена данными с телеметрией
-          std::string path = "/var/run/dpdk/rte/dpdk_telemetry.v2";   // путь к сокету DPDK
-          std::string status;                                         // хранилище первого сообщения телеметрии: версия тулкита, статус приложения
-          std::string reply;                                          // хранилище крайнего ответа DPDK
+
+          ///@brief статус: есть ли соединение к телеметрии
+          ///@return возвращаем true при наличии коннекта
+          operator bool();
+private:
+          int fd = -1;                                              // канал обмена данными с телеметрией
+          std::string path = "/var/run/dpdk/rte/dpdk_telemetry.v2"; // путь к сокету DPDK
+          std::string status;                                       // первый ответ: версия тулкита, pid приложения 
+          std::string query;                                        // крайний запрос
+          std::string reply;                                        // крайний ответ DPDK
 
           ///@brief открывает сокет, по которому DPDK пишет телеметрию
           ///@return socket FD или -1 по невозможности открыть соединение.
