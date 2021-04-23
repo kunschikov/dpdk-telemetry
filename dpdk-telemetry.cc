@@ -253,3 +253,35 @@ DPDKTelemetry:: operator bool()
 {
      return fd != -1;
 }
+
+DPDKTelemetry::operator std::vector<std::string>()
+{
+    return as_vector();
+}
+
+std::vector<std::string> DPDKTelemetry::as_vector()
+{
+    if(not query.empty())
+    {
+        write(query);
+        query.clear();
+        reply = read();
+    }
+
+    //without boost:split
+    std::string token;
+    std::vector<std::string> v;
+    for(const char c: reply)
+    {
+        if(c == ','){
+            if(not token.empty())
+                v.push_back(token);
+            token.clear();
+            continue;
+        }
+        token += c;
+    }
+    if(not token.empty())
+        v.push_back(token);
+    return v;
+}

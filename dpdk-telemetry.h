@@ -2,6 +2,7 @@
 #ifndef __DPDK_TELEMETRY_H__
 #define __DPDK_TELEMETRY_H__
 #include <string>
+#include <vector>
 /* *
  *   Работа с телеметрией DPDK как с потоком с++
  *
@@ -14,6 +15,11 @@
  *   DPDKTelemetry tm;
  *   tm << "/ethdev/list" >> devices << "/ethdev/link_status,0" >> link;
  *   std::cout << "device lis is: " << devices << " link of the port #0 is " << link << std::endl;
+ *
+ * Пример использования #2
+ *   for(const auto &device: DPDKTelemetry("/ethdev/list").as_vector())
+ *       std::cout << "iface: " << device << " link: " 
+ *            << DPDKTelemetry("/ethdev/link_status," + device)["/ethdev/link_status.status"] << std::endl;
  *
  *   Команды и ответы смотреть на устройстве через консольную утилиту dpdk-telemetry
  *   
@@ -53,6 +59,11 @@ public:
           ///@brief конверсия в std::string 
           ///@return возвращаем крайний ответ
           operator std::string();
+
+          ///@brief конверсия в std::vector<std::string>
+          ///@return возвращаем крайний ответ
+          operator std::vector<std::string>();
+          std::vector<std::string> as_vector();
 
           ///@brief статус: есть ли соединение к телеметрии
           ///@return возвращаем true при наличии коннекта
